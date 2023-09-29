@@ -1,10 +1,10 @@
 import nltk
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import GridSearchCV, cross_val_predict
+from sklearn.metrics import make_scorer, accuracy_score, classification_report
 
 
 def clean(line):
@@ -55,19 +55,6 @@ def vectorize(facts, fakes):
     return X, Y
 
 
-def split_data(X, Y, test_size):
-    """
-    splits data set into training and testing parts
-    :param X: matrix of features
-    :param Y: list of labels
-    :param test_size: proportion of data set to be the testing data set
-    :return: X_train, X_test, Y_train, Y_test
-    """
-
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=test_size, random_state=42)
-    return X_train, X_test, Y_train, Y_test
-
-
 def train_MultinomialNB(X_train, Y_train):
     classifier = MultinomialNB()
     classifier.fit(X_train, Y_train)
@@ -86,6 +73,41 @@ def train_SVM(X_train, Y_train):
     return classifier
 
 
+def CV_HPT(classifier, param_grid, name):
+    """
+    perform cross validation and hyperparameter tuning using a GridSearchCV object and assess the accuracy of best result
+    :param classifier: linear classifier model being tested
+    :param param_grid: hyperparameters of classifier being tested
+    :param name: the name of the classifier model
+    :return: the optimal parameters found for that model
+    """
+
+    # create a GridSearchCV object
+    grid_search = GridSearchCV(classifier, param_grid, cv=5, scoring=make_scorer(accuracy_score))
+
+    # fit the GridSearchCV object to the data
+    grid_search.fit(X, Y)
+
+    best_classifier = grid_search.best_estimator_
+    best_parameters = grid_search.best_params_
+    best_score = grid_search.best_score_
+    y_predict = cross_val_predict(best_classifier, X, Y, cv=5)
+
+    print(f"Model: {name}")
+
+    # print the best parameters found by Grid Search
+    print(f"Best Parameters: {best_parameters}")
+
+    # print the best accuracy using the best parameters
+    print(f"Best accuracy: {best_score}")
+
+    # print classification report with the best parameters
+    print(f"Classification Report:")
+    print(classification_report(Y, y_predict))
+
+    return best_classifier
+
+
 with open('facts.txt', 'r', encoding='utf-8') as facts_file:
     facts = facts_file.readlines()
 
@@ -98,30 +120,25 @@ fakes = [clean(line) for line in fakes]
 
 X, Y = vectorize(facts, fakes)
 
-X_train, X_test, Y_train, Y_test = split_data(X, Y, 0.1)
 
+MNB_param_grid = {
+    'alpha': [0.1, 0.5, 1.0]
+}
 
-MultinomialNB_classifier = train_MultinomialNB(X_train, Y_train)
-MultinomialNB_y_predict = MultinomialNB_classifier.predict(X_test)
-MultinomialNB_accuracy = accuracy_score(Y_test, MultinomialNB_y_predict)
-MultinomialNB_report = classification_report(Y_test, MultinomialNB_y_predict)
+LR_param_grid = {
+    'C': [0.1, 1.0, 10.0],
+    'max_iter': [100, 200, 300]
+}
 
-LR_classifier = train_LR(X_train, Y_train)
-LR_y_predict = LR_classifier.predict(X_test)
-LR_accuracy = accuracy_score(Y_test, LR_y_predict)
-LR_report = classification_report(Y_test, LR_y_predict)
+SVM_param_grid = {
+    'C': [0.1, 1.0, 10.0],
+    'kernel': ['linear', 'rbf', 'poly']
+}
 
-SVM_classifier = train_SVM(X_train, Y_train)
-SVM_y_predict = SVM_classifier.predict(X_test)
-SVM_accuracy = accuracy_score(Y_test, SVM_y_predict)
-SVM_report = classification_report(Y_test, SVM_y_predict)
+MNB_classifier = MultinomialNB()
+LR_classifier = LogisticRegression()
+SVC_classifier = SVC()
 
-
-print(f"MultinomialNB_Accuracy: {MultinomialNB_accuracy}")
-print(MultinomialNB_report)
-
-print(f"LR_Accuracy: {LR_accuracy}")
-print(LR_report)
-
-print(f"SVM_Accuracy: {SVM_accuracy}")
-print(SVM_report)
+MNB_param = CV_HPT(MNB_classifier, MNB_param_grid, "Multinomial Naive Bayes")
+LR_param = CV_HPT(LR_classifier, LR_param_grid, "Logistic Regression")
+SVM_param = CV_HPT(SVC_classifier, SVM_param_grid, "Support Vector Machine")
