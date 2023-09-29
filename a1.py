@@ -3,6 +3,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, classification_report
 
 
@@ -67,14 +68,20 @@ def split_data(X, Y, test_size):
     return X_train, X_test, Y_train, Y_test
 
 
+def train_MultinomialNB(X_train, Y_train):
+    classifier = MultinomialNB()
+    classifier.fit(X_train, Y_train)
+    return classifier
+
+
 def train_LR(X_train, Y_train):
     classifier = LogisticRegression()
     classifier.fit(X_train, Y_train)
     return classifier
 
 
-def train_MultinomialNB(X_train, Y_train):
-    classifier = MultinomialNB()
+def train_SVM(X_train, Y_train):
+    classifier = SVC(kernel='linear', C=1.0)
     classifier.fit(X_train, Y_train)
     return classifier
 
@@ -94,19 +101,27 @@ X, Y = vectorize(facts, fakes)
 X_train, X_test, Y_train, Y_test = split_data(X, Y, 0.1)
 
 
-LR_classifier = train_LR(X_train, Y_train)
-LR_y_predict = LR_classifier.predict(X_test)
-LR_accuracy = accuracy_score(Y_test, LR_y_predict)
-LR_report = classification_report(Y_test, LR_y_predict)
-
 MultinomialNB_classifier = train_MultinomialNB(X_train, Y_train)
 MultinomialNB_y_predict = MultinomialNB_classifier.predict(X_test)
 MultinomialNB_accuracy = accuracy_score(Y_test, MultinomialNB_y_predict)
 MultinomialNB_report = classification_report(Y_test, MultinomialNB_y_predict)
 
+LR_classifier = train_LR(X_train, Y_train)
+LR_y_predict = LR_classifier.predict(X_test)
+LR_accuracy = accuracy_score(Y_test, LR_y_predict)
+LR_report = classification_report(Y_test, LR_y_predict)
+
+SVM_classifier = train_SVM(X_train, Y_train)
+SVM_y_predict = SVM_classifier.predict(X_test)
+SVM_accuracy = accuracy_score(Y_test, SVM_y_predict)
+SVM_report = classification_report(Y_test, SVM_y_predict)
+
+
+print(f"MultinomialNB_Accuracy: {MultinomialNB_accuracy}")
+print(MultinomialNB_report)
 
 print(f"LR_Accuracy: {LR_accuracy}")
 print(LR_report)
 
-print(f"MultinomialNB_Accuracy: {MultinomialNB_accuracy}")
-print(MultinomialNB_report)
+print(f"SVM_Accuracy: {SVM_accuracy}")
+print(SVM_report)
