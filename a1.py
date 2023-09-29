@@ -2,10 +2,17 @@ import nltk
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score, classification_report
 
 
-def preprocess(line):
+def clean(line):
+    """
+    make lowercase -> tokenize -> remove punctuation and special characters -> remove stopwords -> stem -> reassemble
+    :param line: line of text
+    :return: cleaned line of text
+    """
+
     # make words lowercase
     line = line.lower()
 
@@ -24,12 +31,54 @@ def preprocess(line):
     words = [stemmer.stem(word) for word in words]
 
     # piece tokens back into lines
-    words = ' '.join(words)
+    line = ' '.join(words)
 
-    return words
+    return line
 
 
-# open files facts.txt and fakes.txt
+def vectorize(facts, fakes):
+    """
+    vectorizes features into a matrix and labels into a list
+    :param facts: list of cleaned texts containing cat facts
+    :param fakes: list of cleaned texts containing cat fakes
+    :return: matrix of features and list of labels
+    """
+
+    # vectorize the features (turn words into numerical values)
+    vectorizer = TfidfVectorizer(max_features=5000)
+    X = vectorizer.fit_transform(facts + fakes).toarray()
+
+    # create labels
+    Y = [1] * len(facts) + [0] * len(fakes)
+
+    return X, Y
+
+
+def split_data(X, Y, test_size):
+    """
+    splits data set into training and testing parts
+    :param X: matrix of features
+    :param Y: list of labels
+    :param test_size: proportion of data set to be the testing data set
+    :return: X_train, X_test, Y_train, Y_test
+    """
+
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=test_size, random_state=42)
+    return X_train, X_test, Y_train, Y_test
+
+
+def train_LR(X_train, Y_train):
+    classifier = LogisticRegression()
+    classifier.fit(X_train, Y_train)
+    return classifier
+
+
+def train_MultinomialNB(X_train, Y_train):
+    classifier = MultinomialNB()
+    classifier.fit(X_train, Y_train)
+    return classifier
+
+
 with open('facts.txt', 'r', encoding='utf-8') as facts_file:
     facts = facts_file.readlines()
 
@@ -37,28 +86,27 @@ with open('fakes.txt', 'r', encoding='utf-8') as fakes_file:
     fakes = fakes_file.readlines()
 
 
-# preprocess features
-facts = [preprocess(line) for line in facts]
-fakes = [preprocess(line) for line in fakes]
+facts = [clean(line) for line in facts]
+fakes = [clean(line) for line in fakes]
 
-# vectorize the features (turn words into numerical values)
-vectorizer = TfidfVectorizer(max_features=5000)
-X = vectorizer.fit_transform(facts + fakes).toarray()
+X, Y = vectorize(facts, fakes)
 
-# create labels
-Y = [1] * len(facts) + [0] * len(fakes)
+X_train, X_test, Y_train, Y_test = split_data(X, Y, 0.1)
 
-# split data set
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
-classifier = LogisticRegression()
-classifier.fit(X_train, Y_train)
+LR_classifier = train_LR(X_train, Y_train)
+LR_y_predict = LR_classifier.predict(X_test)
+LR_accuracy = accuracy_score(Y_test, LR_y_predict)
+LR_report = classification_report(Y_test, LR_y_predict)
 
-y_pred = classifier.predict(X_test)
+MultinomialNB_classifier = train_MultinomialNB(X_train, Y_train)
+MultinomialNB_y_predict = MultinomialNB_classifier.predict(X_test)
+MultinomialNB_accuracy = accuracy_score(Y_test, MultinomialNB_y_predict)
+MultinomialNB_report = classification_report(Y_test, MultinomialNB_y_predict)
 
-accuracy = accuracy_score(Y_test, y_pred)
 
-report = classification_report(Y_test, y_pred)
+print(f"LR_Accuracy: {LR_accuracy}")
+print(LR_report)
 
-# print(f"Accuracy: {accuracy}")
-# print(report)
+print(f"MultinomialNB_Accuracy: {MultinomialNB_accuracy}")
+print(MultinomialNB_report)
